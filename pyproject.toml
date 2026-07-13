@@ -1,0 +1,7 @@
+[project]
+name = "my-century-biorobotics-core"
+version = "1.0.0"
+dependencies = ["mcp>=0.1.0", "pyserial"]
+
+[tool.setuptools]
+packages = ["src"]
