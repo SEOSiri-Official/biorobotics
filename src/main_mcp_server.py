@@ -42,4 +42,6 @@ def fetch_genomic_data(gene_id: str) -> str:
         return json.dumps({"error": str(e)})
 
 if __name__ == "__main__":
+    import time
+    time.sleep(0.5) 
     mcp.run(transport='stdio')

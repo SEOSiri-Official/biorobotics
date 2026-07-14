@@ -1,3 +1,23 @@
+Metadata-Version: 2.4
+Name: seosiri-biorobotics
+Version: 1.0.0
+Summary: A stateless, deterministic Bio-Robotics Core Engine leveraging the Model Context Protocol (MCP).
+Author-email: SEOSiri-Official <info@seosiri.org>
+License: MIT
+Project-URL: Homepage, https://github.com/SEOSiri-Official/biorobotics
+Project-URL: Repository, https://github.com/SEOSiri-Official/biorobotics.git
+Project-URL: Sponsorship, https://github.com/sponsors/SEOSiri-Official
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Topic :: Scientific/Engineering :: Bio-Informatics
+Classifier: Topic :: Scientific/Engineering :: Robotics
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: mcp>=1.0.0
+Requires-Dist: requests>=2.28.0
+Requires-Dist: pyserial>=3.5
+
 # SEOSiri Bio-Robotics Core Engine
 An open-source, stateless Model Context Protocol (MCP) framework bridging the gap between biological datasets and physical robotic actuation systems.
 
