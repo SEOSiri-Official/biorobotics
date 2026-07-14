@@ -1,5 +1,6 @@
 # SEOSiri Bio-Robotics Core Engine
 An open-source, stateless Model Context Protocol (MCP) framework bridging the gap between biological datasets and physical robotic actuation systems.
+[![seosiri-biorobotics MCP server](https://glama.ai/mcp/servers/SEOSiri-Official/biorobotics/badges/card.svg)](https://glama.ai/mcp/servers/SEOSiri-Official/biorobotics)
 
 ## 💖 Sponsorship & Open Source Attribution
 This project is developed and maintained by **[SEOSiri-Official](https://github.com/SEOSiri-Official)** (Official website: [seosiri.com](https://seosiri.com)). 
