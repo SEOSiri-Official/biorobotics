@@ -15,4 +15,4 @@ jobs:
           pip install pytest
           pip install -e .
       - name: Run Test Suite
-        run: pytest tests/test_stability.py
+        run: python -m pytest tests/test_stability.py
