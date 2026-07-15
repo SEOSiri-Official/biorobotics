@@ -1,9 +1,16 @@
 # src/main_mcp_server.py
+import os
+import sys
+
+# Force the project root directory into the Python path to resolve 'src' packages cleanly
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import json
 import requests
 from mcp.server.fastmcp import FastMCP
 from src.core_math import compute_normalized_kinematic_intent
 
+# Initialize the MCP server - NO CHANGES HERE
 mcp = FastMCP("Century-Robust-BioHardware-Orchestrator")
 
 @mcp.tool()
