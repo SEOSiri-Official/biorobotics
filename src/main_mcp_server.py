@@ -143,6 +143,28 @@ def calculate_pipetting_speed(reagent_viscosity_cp: float, target_volume_uL: flo
         "pressure_delay_seconds": max(0.5, aspiration_delay_sec)
     })
 
+    @mcp.tool()
+def calculate_dna_melting_temp(dna_sequence: str) -> str:
+    """
+    Calculates the GC-content and melting temperature (Tm) of a DNA sequence
+    to determine the required heating plate temperature on the physical deck.
+    """
+    sequence = dna_sequence.upper().strip()
+    gc_count = sequence.count('G') + sequence.count('C')
+    total_count = len(sequence)
+    
+    # Calculate GC-content percentage
+    gc_percent = (gc_count / total_count) * 100 if total_count > 0 else 0
+    
+    # Standard basic Tm formula for short sequences: Tm = 2*(A+T) + 4*(G+C)
+    tm = 64.9 + 41.0 * (gc_count - 16.4) / total_count if total_count > 0 else 0
+    
+    return json.dumps({
+        "gc_content_percent": round(gc_percent, 2),
+        "calculated_melting_temp_c": round(tm, 2),
+        "recommended_heating_bed_c": round(tm + 5.0, 1) # Target buffer offset
+    })
+
 # =====================================================================
 # THE ENTRY POINT (MUST ALWAYS REMAIN AT THE ABSOLUTE BOTTOM)
 # =====================================================================
