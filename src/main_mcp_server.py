@@ -168,6 +168,37 @@ def calculate_dna_melting_temp(dna_sequence: str) -> str:
 # =====================================================================
 # THE ENTRY POINT (MUST ALWAYS REMAIN AT THE ABSOLUTE BOTTOM)
 # =====================================================================
+# =====================================================================
+# NEW TOOL 6: NEURAL/EMG ACTUATION TRANSLATION (Prosthetic Interface)
+# =====================================================================
+@mcp.tool()
+def translate_emg_to_actuation(emg_microvolts: float, joint_id: str = "elbow_servo") -> str:
+    """
+    Translates human muscle electrical signals (EMG in microvolts) into 
+    safe, deterministic joint angles and velocity profiles for prosthetic actuation.
+    """
+    # Clamp signal to prevent involuntary muscle spasms from over-rotating hardware
+    clamped_emg = max(0.0, min(emg_microvolts, 1000.0))
+    
+    # Map 0-1000 microvolts to a standard 0 to 180-degree servo arc
+    target_angle_deg = round((clamped_emg / 1000.0) * 180.0, 1)
+    
+    # High muscle tension maps to slower, high-torque movement for payload safety
+    if clamped_emg > 700.0:
+        recommended_feedrate = 500.0  # Slow, controlled speed
+        safety_status = "CLAMPED_HIGH_TENSION"
+    else:
+        recommended_feedrate = 1500.0 # Nominal standard speed
+        safety_status = "NOMINAL"
+        
+    return json.dumps({
+        "input_emg_uV": clamped_emg,
+        "target_actuator": joint_id,
+        "calculated_angle_degrees": target_angle_deg,
+        "recommended_feedrate": recommended_feedrate,
+        "gcode_command": f"G1 X{target_angle_deg} F{recommended_feedrate}",
+        "safety_envelope": safety_status
+    })
 if __name__ == "__main__":
     import time
     time.sleep(0.5)
