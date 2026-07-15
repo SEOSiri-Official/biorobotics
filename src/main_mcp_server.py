@@ -142,8 +142,8 @@ def calculate_pipetting_speed(reagent_viscosity_cp: float, target_volume_uL: flo
         "recommended_gcode_feedrate": max(100.0, safe_feedrate), # Prevent stalling below 100
         "pressure_delay_seconds": max(0.5, aspiration_delay_sec)
     })
-
-    @mcp.tool()
+# Ensure there are no spaces at the beginning of these two lines
+@mcp.tool()
 def calculate_dna_melting_temp(dna_sequence: str) -> str:
     """
     Calculates the GC-content and melting temperature (Tm) of a DNA sequence
