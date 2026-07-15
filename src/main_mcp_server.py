@@ -9,6 +9,11 @@ import json
 import requests
 from mcp.server.fastmcp import FastMCP
 from src.core_math import compute_normalized_kinematic_intent
+# Import the database functions at the top of src/main_mcp_server.py
+from src.local_db import init_db, get_cached_gene, cache_gene
+
+# Initialize the database on startup (runs once when the server starts)
+init_db()
 
 # Initialize the MCP server
 mcp = FastMCP("Century-Robust-BioHardware-Orchestrator")
@@ -27,15 +32,30 @@ def resolve_biotech_spatial_intent(concentration_input: float, plate_scale_mm: f
     })
 
 # =====================================================================
-# TOOL 2: GENOMIC DATA FETCH (NCBI / UniProt API Interface)
+# TOOL 2: GENOMIC DATA FETCH WITH SQLITE CACHE (NCBI / UniProt API)
 # =====================================================================
 @mcp.tool()
 def fetch_genomic_data(gene_id: str) -> str:
     """
-    Queries live open-access sequence parameters from the UniProt REST API.
-    Gracefully falls back to mock sequences if the API is offline or restricted.
+    Queries sequence parameters. Checks the local SQLite cache first.
+    If not cached, queries the UniProt REST API and saves the result locally.
     """
-    url = f"https://rest.uniprot.org/uniprotkb/{gene_id}.json"
+    gene_key = gene_id.upper().strip()
+    
+    # 1. Check local SQLite cache first
+    cached_record = get_cached_gene(gene_key)
+    if cached_record:
+        return json.dumps({
+            "gene_id": gene_key,
+            "sequence": cached_record["sequence"][:40] + "...",
+            "sequence_length": len(cached_record["sequence"]),
+            "concentration_proxy": cached_record["concentration_proxy"],
+            "source": "Local_SQLite_Cache",
+            "status": "DATA_RETRIEVED"
+        })
+        
+    # 2. If not cached, query the live UniProt REST API
+    url = f"https://rest.uniprot.org/uniprotkb/{gene_key}.json"
     
     fallback_database = {
         "BRCA1": {"sequence": "MSR...[sequence_data]...G", "concentration_proxy": 45.0},
@@ -51,8 +71,12 @@ def fetch_genomic_data(gene_id: str) -> str:
             
             # Map benign molecular complexity to a metric proxy concentration
             concentration = round(float(length) * 0.1, 2)
+            
+            # Save to local cache database for future instant retrieval
+            cache_gene(gene_key, sequence, concentration)
+            
             return json.dumps({
-                "gene_id": gene_id,
+                "gene_id": gene_key,
                 "sequence": sequence[:40] + "...",
                 "sequence_length": length,
                 "concentration_proxy": concentration,
@@ -62,10 +86,10 @@ def fetch_genomic_data(gene_id: str) -> str:
     except Exception:
         pass # Fall through to local fallback database on timeout/network issue
     
-    # Fallback to local static database on failure
-    record = fallback_database.get(gene_id, {"sequence": "UNKNOWN", "concentration_proxy": 10.0})
+    # 3. Fallback to local static reference if both cache and API are offline
+    record = fallback_database.get(gene_key, {"sequence": "UNKNOWN", "concentration_proxy": 10.0})
     return json.dumps({
-        "gene_id": gene_id,
+        "gene_id": gene_key,
         "sequence": record["sequence"],
         "concentration_proxy": record["concentration_proxy"],
         "source": "Local_Fallback_Database",
@@ -142,6 +166,7 @@ def calculate_pipetting_speed(reagent_viscosity_cp: float, target_volume_uL: flo
         "recommended_gcode_feedrate": max(100.0, safe_feedrate), # Prevent stalling below 100
         "pressure_delay_seconds": max(0.5, aspiration_delay_sec)
     })
+
 # Ensure there are no spaces at the beginning of these two lines
 @mcp.tool()
 def calculate_dna_melting_temp(dna_sequence: str) -> str:
@@ -199,6 +224,7 @@ def translate_emg_to_actuation(emg_microvolts: float, joint_id: str = "elbow_ser
         "gcode_command": f"G1 X{target_angle_deg} F{recommended_feedrate}",
         "safety_envelope": safety_status
     })
+
 if __name__ == "__main__":
     import time
     time.sleep(0.5)
