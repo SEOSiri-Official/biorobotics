@@ -36,7 +36,8 @@ async def run_lab_experiment(gene_id: str, plate_scale: float):
             
             # 3. Stream to Serial G-code interface
             print(f"[Orchestrator] Formatting and streaming to hardware gateway...")
-            driver = GCodeSerialDriver(mock_mode=True) # Set to False when connecting physical Arduino/microcontrollers
+            # Toggle mock_mode=False here to stream live serial commands
+            driver = GCodeSerialDriver(port="COM3", mock_mode=False)
             driver.stream_coordinate(meters_delta)
             print("[Orchestrator] Pipeline executed successfully.")
 
