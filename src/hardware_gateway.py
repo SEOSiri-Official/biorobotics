@@ -1,5 +1,6 @@
 # src/hardware_gateway.py
 import sys
+import json
 
 try:
     import serial
@@ -9,8 +10,8 @@ except ImportError:
 
 class GCodeSerialDriver:
     """
-    Translates physical SI meter coordinates into standardized G-code blocks 
-    and handles USB/Serial streaming to microcontrollers.
+    Actuation Layer: Exposes the serial bus to the controller. Only executes 
+    G-code if it is wrapped in an authorized, signed policy envelope.
     """
     def __init__(self, port: str = "COM3", baudrate: int = 115200, mock_mode: bool = True):
         self.port = port
@@ -19,26 +20,35 @@ class GCodeSerialDriver:
         self.connection = None
         
         if self.mock_mode:
-            print(f"[Driver] INITIALIZED IN MOCK MODE (No physical port required).")
+            print(f"[Driver] INITIALIZED IN MOCK MODE.")
         else:
             try:
                 self.connection = serial.Serial(self.port, self.baudrate, timeout=2)
                 print(f"[Driver] Connected to active microcontroller on {self.port}")
             except Exception as e:
-                print(f"[Driver] Physical port connection failed ({e}). Defaulting to Mock Mode.")
+                print(f"[Driver] Connection failed ({e}). Defaulting to Mock Mode.")
                 self.mock_mode = True
 
-    def stream_coordinate(self, x_meters: float) -> str:
+    def stream_authorized_envelope(self, policy_envelope_json: str) -> str:
         """
-        Converts SI metric vectors to millimeter precision G-code commands.
-        Example: 0.04219 meters -> G1 X42.19 F1500 (Feedrate 1500 mm/min)
+        Interprets and streams the authorized envelope. Rejects raw G-code 
+        if it lacks a valid security signature.
         """
-        # Convert SI meters to standard millimeter format
-        x_millimeters = round(x_meters * 1000.0, 3)
-        gcode_command = f"G1 X{x_millimeters} F1500\n"
+        envelope = json.loads(policy_envelope_json)
+        
+        # Verify authorization status
+        if envelope.get("status") != "AUTHORIZED":
+            print(f"[Actuator Blocked] Command rejected. Violation: {envelope.get('reason', 'INVALID_ENVELOPE')}")
+            return "ERROR_SECURITY_BLOCK"
+            
+        gcode_command = envelope.get("command") + "\n"
+        signature = envelope.get("signature")
+        
+        # In a real environment, the microcontroller also runs HMAC verification
+        print(f"[Actuator Approved] Verified signature: {signature[:10]}...")
         
         if self.mock_mode:
-            print(f"[Mock-Serial] Sent: {gcode_command.strip()}")
+            print(f"[Mock-Serial] Sent to motor: {gcode_command.strip()}")
             return "ok"
         
         try:

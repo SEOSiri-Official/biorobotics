@@ -5,6 +5,7 @@ import sys
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from src.hardware_gateway import GCodeSerialDriver
+from src.policy_interceptor import enforce_hardware_policy
 
 async def run_lab_experiment(gene_id: str, plate_scale: float):
     # Establish server connection via stdio
@@ -34,14 +35,31 @@ async def run_lab_experiment(gene_id: str, plate_scale: float):
             meters_delta = motion_data["vectors_meters"]["x_axis_delta"]
             print(f"[Orchestrator] Deterministic SI delta output: {meters_delta} m")
             
-            # 3. Stream to Serial G-code interface
-            print(f"[Orchestrator] Formatting and streaming to hardware gateway...")
-            # Toggle mock_mode=False here to stream live serial commands
-            driver = GCodeSerialDriver(port="COM3", mock_mode=False)
-            driver.stream_coordinate(meters_delta)
-            print("[Orchestrator] Pipeline executed successfully.")
+            # 3. Query the bionics tool (simulate microvolt scaling for testing)
+            print(f"[Orchestrator] Translating physical delta to bionics target angle...")
+            emg_sim = (meters_delta * 1000.0) * 10.0
+            raw_bionics = await session.call_tool("translate_emg_to_actuation", 
+                                                 arguments={"emg_microvolts": emg_sim, "joint_id": "elbow_servo"})
+            bionics_data = json.loads(raw_bionics.content[0].text)
+            raw_gcode = bionics_data["gcode_command"]
+            print(f"[Orchestrator] Proposed G-code command: {raw_gcode.strip()}")
+            
+            # 4. PASS THROUGH THE SOVEREIGN POLICY INTERCEPTOR
+            print(f"[Orchestrator] Passing proposed command to Policy Interceptor...")
+            envelope = enforce_hardware_policy(raw_gcode)
+            envelope_json = json.dumps(envelope)
+            print(f"[Orchestrator] Interceptor Status: {envelope['status']}")
+            
+            if envelope['status'] != "AUTHORIZED":
+                print(f"[Orchestrator Blocked] Command failed policy validation: {envelope.get('reason')}")
+                return
+            
+            # 5. Stream the signed and approved envelope to the hardware gateway
+            print(f"[Orchestrator] Streaming authorized envelope to hardware...")
+            driver = GCodeSerialDriver(mock_mode=True)
+            driver.stream_authorized_envelope(envelope_json)
+            print("[Orchestrator] Master Pipeline executed successfully.")
 
 if __name__ == "__main__":
-    # Standard benign identifiers: P42212 (GFP) or BRCA1 (Local reference)
     target_gene = sys.argv[1] if len(sys.argv) > 1 else "P42212"
     asyncio.run(run_lab_experiment(target_gene, 100.0))
